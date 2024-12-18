@@ -25,6 +25,8 @@ namespace HttpNewsPAT
             dataStream.Close();
             response.Close();
             CookieContainer cookies = SignIn("student", "Asdfg123");
+            string content = GetContent(cookies);
+            Console.WriteLine(content);
             Console.Read();
         }
         public static CookieContainer SignIn(string Login, string Password)
@@ -48,6 +50,17 @@ namespace HttpNewsPAT
             string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
             Console.WriteLine(responseFromServer);
             return cookieContainer;
+        }
+        public static string GetContent(CookieContainer cookies)
+        {
+            string url = "http://news.permaviat.ru/main";
+            Debug.WriteLine($"Выполняем запрос: {url}");
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.CookieContainer = cookies;
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Debug.WriteLine($"Статус выполнения: {response.StatusCode}");
+            string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
+            return responseFromServer;
         }
     }
 }
