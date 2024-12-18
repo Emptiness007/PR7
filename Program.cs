@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -23,7 +24,30 @@ namespace HttpNewsPAT
             reader.Close();
             dataStream.Close();
             response.Close();
+            CookieContainer cookies = SignIn("student", "Asdfg123");
             Console.Read();
+        }
+        public static CookieContainer SignIn(string Login, string Password)
+        {
+            string url = "http://news.permaviat.ru/ajax/login.php";
+            Debug.WriteLine($"Выполняем запрос: {url}");
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = "POST";
+            request.ContentType = "application/x-www-form-urlencoded";
+            CookieContainer cookieContainer = new CookieContainer();
+            request.CookieContainer = cookieContainer;
+            string postData = $"login={Login}&password={Password}";
+            byte[] Data = Encoding.ASCII.GetBytes(postData);
+            request.ContentLength = Data.Length;
+            using (var stream = request.GetRequestStream())
+            {
+                stream.Write(Data, 0, Data.Length);
+            }
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Debug.WriteLine($"Статус выполнения: {response.StatusCode}");
+            string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
+            Console.WriteLine(responseFromServer);
+            return cookieContainer;
         }
     }
 }
