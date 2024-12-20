@@ -19,11 +19,11 @@ namespace HttpNewsPAT
         {
             WebRequest request = WebRequest.Create("http://permaviat.ru/main");
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Console.WriteLine(response.StatusDescription);
+            Log(response.StatusDescription);
             Stream dataStream = response.GetResponseStream();
             StreamReader reader = new StreamReader(dataStream);
             string responseFromServer = reader.ReadToEnd();
-            Console.WriteLine(responseFromServer);
+            Log(responseFromServer);
             reader.Close();
             dataStream.Close();
             response.Close();
@@ -38,7 +38,7 @@ namespace HttpNewsPAT
         public static CookieContainer SignIn(string Login, string Password)
         {
             string url = "http://news.permaviat.ru/ajax/login.php";
-            Log($"Выполняем запрос: {url}");
+            Console.WriteLine($"Выполняем запрос: {url}");
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
             request.Method = "POST";
             request.ContentType = "application/x-www-form-urlencoded";
@@ -52,19 +52,19 @@ namespace HttpNewsPAT
                 stream.Write(Data, 0, Data.Length);
             }
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Log($"Статус выполнения: {response.StatusCode}");
+            Console.WriteLine($"Статус выполнения: {response.StatusCode}");
             string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
-            Console.WriteLine(responseFromServer);
+            Log(responseFromServer);
             return cookieContainer;
         }
         public static string GetContent(CookieContainer cookies)
         {
             string url = "http://news.permaviat.ru/main";
-            Log($"Выполняем запрос: {url}");
+            Console.WriteLine($"Выполняем запрос: {url}");
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
             request.CookieContainer = cookies;
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Log($"Статус выполнения: {response.StatusCode}");
+            Console.WriteLine($"Статус выполнения: {response.StatusCode}");
             string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
             return responseFromServer;
         }
@@ -79,7 +79,7 @@ namespace HttpNewsPAT
                 var src = DivNews.ChildNodes[1].GetAttributeValue("srs", "none");
                 var name = DivNews.ChildNodes[3].InnerText;
                 var description = DivNews.ChildNodes[5].InnerText;
-                Console.WriteLine(name + "\n" + "Изображение: " + src + "\n" + "Описание: " + description + "\n");
+                Log(name + "\n" + "Изображение: " + src + "\n" + "Описание: " + description + "\n");
             }
         }
         private static void Log(string message)
