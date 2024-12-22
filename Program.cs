@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,71 +17,90 @@ namespace HttpNewsPAT
     internal class Program
     {
         private static string logFilePath = "debug_log.txt";
-        static void Main(string[] args)
+        private static HttpClient httpClient = new HttpClient(new HttpClientHandler() { UseCookies = true});
+        static async Task Main(string[] args)
         {
-            WebRequest request = WebRequest.Create("http://permaviat.ru/main");
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-            Log(response.StatusDescription);
-            Stream dataStream = response.GetResponseStream();
-            StreamReader reader = new StreamReader(dataStream);
-            string responseFromServer = reader.ReadToEnd();
-            Log(responseFromServer);
-            reader.Close();
-            dataStream.Close();
-            response.Close();
+            var cookies = await SignIn();
+            await GetContent();
 
-            CookieContainer cookies = SignIn("student", "Asdfg123");
+            Console.WriteLine("Введите имя записи:");
+            string name = Console.ReadLine();
 
-            string content = GetContent(cookies);
-            ParsingHtml(content);
+            Console.WriteLine("Введите описание записи:");
+            string description = Console.ReadLine();
+
+            Console.WriteLine("Введите URL изображения:");
+            string imageUrl = Console.ReadLine();
+
+            await AddRecord(name, description, imageUrl);
 
             Console.Read();
         }
-        public static CookieContainer SignIn(string Login, string Password)
+        public static async Task<CookieContainer> SignIn()
         {
-            string url = "http://news.permaviat.ru/ajax/login.php";
+            string url = "http://localhost/ajax/login.php";
             Console.WriteLine($"Выполняем запрос: {url}");
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            request.Method = "POST";
-            request.ContentType = "application/x-www-form-urlencoded";
-            CookieContainer cookieContainer = new CookieContainer();
-            request.CookieContainer = cookieContainer;
-            string postData = $"login={Login}&password={Password}";
-            byte[] Data = Encoding.ASCII.GetBytes(postData);
-            request.ContentLength = Data.Length;
-            using (var stream = request.GetRequestStream())
-            {
-                stream.Write(Data, 0, Data.Length);
-            }
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            var postData = new StringContent("login=admin&password=admin", Encoding.ASCII, "application/x-www-form-urlencoded");
+
+            HttpResponseMessage response = await httpClient.PostAsync(url, postData);
+
             Console.WriteLine($"Статус выполнения: {response.StatusCode}");
-            string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
+            string responseFromServer = await response.Content.ReadAsStringAsync();
             Log(responseFromServer);
-            return cookieContainer;
+
+            var cookies = response.Headers.GetValues("Set-Cookie");
+            Console.WriteLine("Полученные печеньки: ");
+            foreach (var cookie in cookies)
+            {
+                Console.WriteLine(cookie);
+            }
+            return null;
         }
-        public static string GetContent(CookieContainer cookies)
+        public static async Task GetContent()
         {
-            string url = "http://news.permaviat.ru/main";
-            Console.WriteLine($"Выполняем запрос: {url}");
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-            request.CookieContainer = cookies;
-            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            string url = "http://localhost/main";
+            
+            HttpResponseMessage response = await httpClient.GetAsync(url);
             Console.WriteLine($"Статус выполнения: {response.StatusCode}");
-            string responseFromServer = new StreamReader(response.GetResponseStream()).ReadToEnd();
-            return responseFromServer;
+            string responseFromServer = await response.Content.ReadAsStringAsync();
+            ParsingHtml(responseFromServer);
         }
         public static void ParsingHtml(string htmlCode)
         {
             var html = new HtmlDocument();
             html.LoadHtml(htmlCode);
             var Document = html.DocumentNode;
-            IEnumerable DivsNews = Document.Descendants(0).Where(n => n.HasClass("news"));
+            var DivsNews = Document.Descendants(0).Where(n => n.HasClass("news"));
             foreach (HtmlNode DivNews in DivsNews)
             {
-                var src = DivNews.ChildNodes[1].GetAttributeValue("srs", "none");
+                var src = DivNews.ChildNodes[1].GetAttributeValue("src", "none");
                 var name = DivNews.ChildNodes[3].InnerText;
                 var description = DivNews.ChildNodes[5].InnerText;
                 Log(name + "\n" + "Изображение: " + src + "\n" + "Описание: " + description + "\n");
+            }
+        }
+        public static async Task AddRecord(string name, string description, string imageUrl)
+        {
+            string url = "http://localhost/ajax/add.php";
+            Trace.WriteLine($"Выполняем запрос: {url}");
+            var formData = new Dictionary<string, string>
+            {
+                { "name", name },
+                { "description", description },
+                { "src", imageUrl }
+            };
+            var content = new FormUrlEncodedContent(formData);
+            HttpResponseMessage response = await httpClient.PostAsync(url, content);
+            Trace.WriteLine($"Статус выполнения: {response.StatusCode}");
+            string responseFromServer = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Ответ сервера: {responseFromServer}");
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Запись успешно добавлена.");
+            }
+            else
+            {
+                Console.WriteLine($"Ошибка при добавлении записи: {response.StatusCode}, сообщение: {responseFromServer}");
             }
         }
         private static void Log(string message)
